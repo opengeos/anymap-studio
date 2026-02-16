@@ -1,0 +1,126 @@
+name: Build and Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: false
+        type: string
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: win
+          - os: macos-latest
+            platform: mac
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Checkout anymap-ts dependency
+        uses: actions/checkout@v4
+        with:
+          repository: opengeos/anymap-ts
+          path: ../anymap-ts
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Build Linux distribution
+        if: matrix.platform == 'linux'
+        run: npm run dist:linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Windows distribution
+        if: matrix.platform == 'win'
+        run: npm run dist:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build macOS distribution
+        if: matrix.platform == 'mac'
+        run: npm run dist:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload Linux artifacts
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-builds
+          path: |
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: warn
+
+      - name: Upload Windows artifacts
+        if: matrix.platform == 'win'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-builds
+          path: |
+            release/*.exe
+          if-no-files-found: warn
+
+      - name: Upload macOS artifacts
+        if: matrix.platform == 'mac'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-builds
+          path: |
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: warn
+
+  upload-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'release'
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -R artifacts || echo "No artifacts found"
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

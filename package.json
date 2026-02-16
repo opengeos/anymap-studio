@@ -1,0 +1,102 @@
+{
+  "name": "anymap-studio",
+  "version": "0.1.0",
+  "description": "A modern GIS desktop application with multi-backend mapping support",
+  "keywords": [
+    "maplibre",
+    "cesium",
+    "deckgl",
+    "electron",
+    "maps",
+    "gis"
+  ],
+  "homepage": "https://github.com/opengeos/anymap-studio#readme",
+  "bugs": {
+    "url": "https://github.com/opengeos/anymap-studio/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/opengeos/anymap-studio.git"
+  },
+  "license": "MIT",
+  "author": "Qiusheng Wu <giswqs@gmail.com>",
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux"
+  },
+  "dependencies": {
+    "@duckdb/duckdb-wasm": "^1.33.1-dev18.0",
+    "anymap-ts": "file:../anymap-ts",
+    "geotiff": "^3.0.3",
+    "lucide-react": "^0.468.0",
+    "maplibre-gl": "^5.16.0",
+    "maplibre-gl-components": "^0.15.0",
+    "maplibre-gl-layer-control": "^0.14.0",
+    "pmtiles": "^4.4.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "shpjs": "^6.2.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.4.0",
+    "autoprefixer": "^10.4.21",
+    "electron": "^40.4.1",
+    "electron-builder": "^25.1.8",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.3",
+    "vite": "^7.3.1",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6"
+  },
+  "build": {
+    "appId": "com.opengeo.anymap-studio",
+    "productName": "AnyMap Studio",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "build/icons",
+      "category": "Science"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

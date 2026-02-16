@@ -1,0 +1,200 @@
+@import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+@import "maplibre-gl-components/style.css";
+
+:root {
+  /* Dark theme with better contrast */
+  --background: 224 71% 4%;
+  --foreground: 213 31% 91%;
+  --card: 224 71% 4%;
+  --card-foreground: 213 31% 91%;
+  --popover: 224 71% 4%;
+  --popover-foreground: 213 31% 91%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 222 47% 11%;
+  --secondary-foreground: 213 31% 91%;
+  --muted: 223 47% 11%;
+  --muted-foreground: 215 20% 75%;
+  --accent: 216 34% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 216 34% 17%;
+  --input: 216 34% 17%;
+  --ring: 216 34% 17%;
+  --radius: 0.5rem;
+
+  /* Custom colors for better visibility */
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+}
+
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--secondary));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--foreground) / 0.5);
+}
+
+/* Map container */
+.maplibregl-map {
+  font-family: inherit;
+}
+
+/* Navigation controls - dark theme */
+.maplibregl-ctrl-group {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.maplibregl-ctrl-group button {
+  background-color: transparent !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background-color: #334155 !important;
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid #334155 !important;
+}
+
+/* Navigation control icons - make them white/light */
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.2) !important;
+}
+
+.maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon,
+.maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.2) !important;
+}
+
+/* Compass icon needs special handling */
+.maplibregl-ctrl-compass .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.5) contrast(1.2) !important;
+}
+
+.maplibregl-ctrl-compass {
+  opacity: 1 !important;
+}
+
+/* Scale control */
+.maplibregl-ctrl-scale {
+  background-color: #1e293b !important;
+  border: 1px solid #475569 !important;
+  border-top: none !important;
+  color: #cbd5e1 !important;
+  font-size: 11px !important;
+  padding: 2px 6px !important;
+}
+
+/* Attribution */
+.maplibregl-ctrl-attrib {
+  background-color: rgba(30, 41, 59, 0.8) !important;
+  color: #94a3b8 !important;
+  font-size: 10px !important;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: #94a3b8 !important;
+}
+
+.maplibregl-ctrl-attrib a:hover {
+  color: #e2e8f0 !important;
+}
+
+.maplibregl-ctrl-attrib-button {
+  filter: invert(0.7);
+}
+
+/* Popup */
+.maplibregl-popup-content {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: #334155;
+}
+
+.maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: #334155;
+}
+
+.maplibregl-popup-close-button {
+  color: #94a3b8;
+  font-size: 18px;
+  padding: 4px 8px;
+}
+
+.maplibregl-popup-close-button:hover {
+  color: #e2e8f0;
+  background-color: transparent;
+}
