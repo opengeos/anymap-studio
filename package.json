@@ -35,7 +35,7 @@
     "@duckdb/duckdb-wasm": "^1.33.1-dev18.0",
     "anymap-ts": "^0.6.2",
     "geotiff": "^3.0.3",
-    "lucide-react": "^0.468.0",
+    "lucide-react": "^0.564.0",
     "maplibre-gl": "^5.16.0",
     "maplibre-gl-components": "^0.15.0",
     "maplibre-gl-layer-control": "^0.14.0",
