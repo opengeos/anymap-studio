@@ -46,6 +46,7 @@ export class MapLibreAdapter implements IMapBackend {
 
     // Add navigation controls
     this.map.addControl(new maplibregl.NavigationControl(), 'top-right')
+    this.map.addControl(new maplibregl.GlobeControl(), 'top-right')
     this.map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
 
     // Wait for map to load
@@ -207,17 +208,20 @@ export class MapLibreAdapter implements IMapBackend {
 
     const sourceId = `source-${id}`
 
-    // Remove all associated layers
-    const layerIds = [`${id}-fill`, `${id}-line`, `${id}-point`, id]
+    // Remove all associated layers (including label, highlight, heatmap)
+    const layerIds = [`${id}-fill`, `${id}-line`, `${id}-point`, `${id}-label`, `${id}-highlight-line`, `${id}-heatmap`, id]
     for (const layerId of layerIds) {
       if (this.map.getLayer(layerId)) {
         this.map.removeLayer(layerId)
       }
     }
 
-    // Remove source
-    if (this.map.getSource(sourceId)) {
-      this.map.removeSource(sourceId)
+    // Remove sources (including highlight and heatmap sources)
+    const sourceIds = [sourceId, `${id}-highlight-source`, `${id}-heatmap-source`]
+    for (const sid of sourceIds) {
+      if (this.map.getSource(sid)) {
+        this.map.removeSource(sid)
+      }
     }
 
     this.layers.delete(id)

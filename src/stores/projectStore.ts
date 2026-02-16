@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import type { BackendType } from '../backends/types'
-import type { AnyMapProject, UnifiedLayerConfig, ViewOptions } from '../types/project'
+import type { AnyMapProject, UnifiedLayerConfig, ViewOptions, RecentProject } from '../types/project'
+
+export interface Bookmark {
+  id: string
+  name: string
+  view: ViewOptions
+}
 
 interface ProjectState {
   name: string
@@ -13,6 +19,7 @@ interface ProjectState {
   selectedLayerId: string | null
   created: string
   modified: string
+  bookmarks: Bookmark[]
 
   // Actions
   setName: (name: string) => void
@@ -30,6 +37,15 @@ interface ProjectState {
   setSelectedLayer: (id: string | null) => void
   toggleLayerVisibility: (id: string) => void
   setLayerOpacity: (id: string, opacity: number) => void
+
+  // Bookmark operations
+  addBookmark: (name: string) => void
+  removeBookmark: (id: string) => void
+  goToBookmark: (id: string) => Bookmark | undefined
+
+  // Recent projects (persisted via localStorage)
+  getRecentProjects: () => RecentProject[]
+  addRecentProject: (path: string, name: string) => void
 
   // Project operations
   loadProject: (project: AnyMapProject, filePath?: string) => void
@@ -55,6 +71,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   selectedLayerId: null,
   created: new Date().toISOString(),
   modified: new Date().toISOString(),
+  bookmarks: [],
 
   setName: (name) => set({ name, isDirty: true, modified: new Date().toISOString() }),
   setDescription: (description) => set({ description, isDirty: true, modified: new Date().toISOString() }),
@@ -109,7 +126,42 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       modified: new Date().toISOString()
     })),
 
-  loadProject: (project, filePath) =>
+  addBookmark: (name) =>
+    set((state) => ({
+      bookmarks: [...state.bookmarks, { id: `bm-${Date.now()}`, name, view: { ...state.view } }],
+      isDirty: true
+    })),
+
+  removeBookmark: (id) =>
+    set((state) => ({
+      bookmarks: state.bookmarks.filter(b => b.id !== id),
+      isDirty: true
+    })),
+
+  goToBookmark: (id) => {
+    const bm = get().bookmarks.find(b => b.id === id)
+    if (bm) set({ view: { ...bm.view } })
+    return bm
+  },
+
+  getRecentProjects: () => {
+    try {
+      const stored = localStorage.getItem('anymap-recent-projects')
+      return stored ? JSON.parse(stored) : []
+    } catch { return [] }
+  },
+
+  addRecentProject: (path, name) => {
+    try {
+      const stored = localStorage.getItem('anymap-recent-projects')
+      const recent: RecentProject[] = stored ? JSON.parse(stored) : []
+      const filtered = recent.filter(r => r.path !== path)
+      filtered.unshift({ path, name, lastOpened: new Date().toISOString() })
+      localStorage.setItem('anymap-recent-projects', JSON.stringify(filtered.slice(0, 10)))
+    } catch { /* ignore */ }
+  },
+
+  loadProject: (project, filePath) => {
     set({
       name: project.metadata.name,
       description: project.metadata.description || '',
@@ -120,8 +172,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       layers: project.layers,
       selectedLayerId: null,
       created: project.metadata.created,
-      modified: project.metadata.modified
-    }),
+      modified: project.metadata.modified,
+      bookmarks: []
+    })
+    if (filePath) get().addRecentProject(filePath, project.metadata.name)
+  },
 
   exportProject: () => {
     const state = get()
@@ -150,6 +205,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       layers: [],
       selectedLayerId: null,
       created: new Date().toISOString(),
-      modified: new Date().toISOString()
+      modified: new Date().toISOString(),
+      bookmarks: []
     })
 }))
