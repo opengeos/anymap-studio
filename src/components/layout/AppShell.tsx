@@ -2,6 +2,8 @@ import { Toolbar } from './Toolbar'
 import { Sidebar } from './Sidebar'
 import { StatusBar } from './StatusBar'
 import { MapCanvas } from '../map/MapCanvas'
+import { MeasureTool } from '../tools/MeasureTool'
+import { DrawTool } from '../tools/DrawTool'
 import { useUIStore } from '../../stores/uiStore'
 
 export function AppShell() {
@@ -16,6 +18,8 @@ export function AppShell() {
 
         <main className="relative flex-1 overflow-hidden">
           <MapCanvas />
+          <MeasureTool />
+          <DrawTool />
         </main>
       </div>
 

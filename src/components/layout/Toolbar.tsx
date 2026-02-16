@@ -5,16 +5,45 @@ import {
   Maximize2,
   PanelLeftClose,
   PanelLeft,
-  Save
+  Save,
+  Ruler,
+  Square,
+  Circle,
+  Minus,
+  Pentagon
 } from 'lucide-react'
 import { useUIStore } from '../../stores/uiStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { useMapStore } from '../../stores/mapStore'
 
 export function Toolbar() {
-  const { sidebarOpen, toggleSidebar, setView } = useUIStore()
+  const { sidebarOpen, toggleSidebar, setView, activeTool, setActiveTool, clearMeasurement } = useUIStore()
   const { name, isDirty, filePath } = useProjectStore()
   const { backend, zoom } = useMapStore()
+
+  const handleMeasureDistance = () => {
+    if (activeTool === 'measure-distance') {
+      clearMeasurement()
+    } else {
+      setActiveTool('measure-distance')
+    }
+  }
+
+  const handleMeasureArea = () => {
+    if (activeTool === 'measure-area') {
+      clearMeasurement()
+    } else {
+      setActiveTool('measure-area')
+    }
+  }
+
+  const handleDraw = (tool: 'draw-point' | 'draw-line' | 'draw-polygon') => {
+    if (activeTool === tool) {
+      setActiveTool('none')
+    } else {
+      setActiveTool(tool)
+    }
+  }
 
   const handleGoHome = async () => {
     const api = window.electronAPI
@@ -103,6 +132,50 @@ export function Toolbar() {
           title="Save project"
         >
           <Save className="h-5 w-5 text-slate-400" />
+        </button>
+
+        <div className="mx-2 h-6 w-px bg-slate-700" />
+
+        <button
+          onClick={handleMeasureDistance}
+          className={`rounded p-1.5 ${activeTool === 'measure-distance' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}
+          title="Measure distance"
+        >
+          <Ruler className={`h-5 w-5 ${activeTool === 'measure-distance' ? 'text-white' : 'text-slate-400'}`} />
+        </button>
+
+        <button
+          onClick={handleMeasureArea}
+          className={`rounded p-1.5 ${activeTool === 'measure-area' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}
+          title="Measure area"
+        >
+          <Square className={`h-5 w-5 ${activeTool === 'measure-area' ? 'text-white' : 'text-slate-400'}`} />
+        </button>
+
+        <div className="mx-2 h-6 w-px bg-slate-700" />
+
+        <button
+          onClick={() => handleDraw('draw-point')}
+          className={`rounded p-1.5 ${activeTool === 'draw-point' ? 'bg-green-600' : 'hover:bg-slate-700'}`}
+          title="Draw points"
+        >
+          <Circle className={`h-5 w-5 ${activeTool === 'draw-point' ? 'text-white' : 'text-slate-400'}`} />
+        </button>
+
+        <button
+          onClick={() => handleDraw('draw-line')}
+          className={`rounded p-1.5 ${activeTool === 'draw-line' ? 'bg-green-600' : 'hover:bg-slate-700'}`}
+          title="Draw line"
+        >
+          <Minus className={`h-5 w-5 ${activeTool === 'draw-line' ? 'text-white' : 'text-slate-400'}`} />
+        </button>
+
+        <button
+          onClick={() => handleDraw('draw-polygon')}
+          className={`rounded p-1.5 ${activeTool === 'draw-polygon' ? 'bg-green-600' : 'hover:bg-slate-700'}`}
+          title="Draw polygon"
+        >
+          <Pentagon className={`h-5 w-5 ${activeTool === 'draw-polygon' ? 'text-white' : 'text-slate-400'}`} />
         </button>
       </div>
 
