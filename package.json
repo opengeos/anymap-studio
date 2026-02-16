@@ -34,6 +34,7 @@
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.33.1-dev18.0",
     "anymap-ts": "^0.6.2",
+    "cesium": "^1.138.0",
     "geotiff": "^3.0.3",
     "lucide-react": "^0.564.0",
     "maplibre-gl": "^5.16.0",
@@ -43,6 +44,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "shpjs": "^6.2.0",
+    "vite-plugin-cesium": "^1.2.23",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
