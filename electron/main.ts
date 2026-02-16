@@ -386,6 +386,28 @@ function setupIpcHandlers(): void {
     return 'cancel'
   })
 
+  // Export save dialog
+  ipcMain.handle('file:export-save-dialog', async (_event, defaultPath?: string, filters?: { name: string, extensions: string[] }[]) => {
+    if (!mainWindow) return { canceled: true }
+
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Export',
+      defaultPath: defaultPath || 'export',
+      filters: filters || [
+        { name: 'PNG Image', extensions: ['png'] },
+        { name: 'GeoJSON', extensions: ['geojson'] },
+        { name: 'CSV', extensions: ['csv'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    })
+
+    if (result.canceled || !result.filePath) {
+      return { canceled: true }
+    }
+
+    return { canceled: false, filePath: result.filePath }
+  })
+
   // Confirm dialog
   ipcMain.handle('dialog:confirm', async (_event, message: string, title?: string) => {
     if (!mainWindow) return false

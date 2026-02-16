@@ -4,15 +4,26 @@ import { LayerItem } from './LayerItem'
 import { useProjectStore } from '../../stores/projectStore'
 import { useMapStore } from '../../stores/mapStore'
 import type { UnifiedLayerConfig } from '../../types/project'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { parseKML, parseCSV, getCSVHeaders, autoDetectCoordinateColumns } from '../../utils/parsers'
+import { calculateBounds } from '../../utils/geo'
 
 export function LayerPanel() {
-  const { layers, addLayer } = useProjectStore()
+  const { layers, addLayer, reorderLayers } = useProjectStore()
   const { backend } = useMapStore()
   const [showUrlDialog, setShowUrlDialog] = useState(false)
   const [urlInput, setUrlInput] = useState('')
-  const [urlType, setUrlType] = useState<'geojson' | 'cog' | 'pmtiles' | 'xyz'>('geojson')
+  const [urlType, setUrlType] = useState<'geojson' | 'cog' | 'pmtiles' | 'xyz' | 'wms' | 'wmts'>('geojson')
   const [isLoading, setIsLoading] = useState(false)
+  const [showCsvDialog, setShowCsvDialog] = useState(false)
+  const [csvContent, setCsvContent] = useState('')
+  const [csvFileName, setCsvFileName] = useState('')
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([])
+  const [csvLatCol, setCsvLatCol] = useState('')
+  const [csvLngCol, setCsvLngCol] = useState('')
+  const [wmsLayers, setWmsLayers] = useState('')
+  const dragItemRef = useRef<number | null>(null)
+  const dragOverRef = useRef<number | null>(null)
 
   const addLayerWithData = async (data: GeoJSON.GeoJSON, name: string) => {
     const layerConfig: UnifiedLayerConfig = {
@@ -51,25 +62,23 @@ export function LayerPanel() {
 
     const result = await api.showOpenDialog({
       filters: [
-        { name: 'Geospatial Files', extensions: ['geojson', 'json', 'shp', 'zip'] },
+        { name: 'Geospatial Files', extensions: ['geojson', 'json', 'shp', 'zip', 'kml', 'kmz', 'csv', 'tsv'] },
         { name: 'GeoJSON', extensions: ['geojson', 'json'] },
-        { name: 'Shapefile', extensions: ['shp', 'zip'] }
+        { name: 'Shapefile', extensions: ['shp', 'zip'] },
+        { name: 'KML/KMZ', extensions: ['kml', 'kmz'] },
+        { name: 'CSV/TSV', extensions: ['csv', 'tsv'] }
       ]
     })
 
     if (result.canceled || !result.filePath) return
 
     const ext = result.filePath.split('.').pop()?.toLowerCase()
-    const fileName = result.filePath.split('/').pop()?.replace(/\.(geojson|json|shp|zip)$/i, '') || 'Untitled'
+    const fileName = result.filePath.split('/').pop()?.split('\\').pop()?.replace(/\.\w+$/i, '') || 'Untitled'
 
     setIsLoading(true)
     try {
-      if (ext === 'shp' || ext === 'zip') {
-        // Parse Shapefile using shpjs - result.buffer is base64 encoded
-        if (!result.buffer) {
-          throw new Error('Failed to read binary file')
-        }
-        // Convert base64 to ArrayBuffer
+      if (ext === 'shp' || (ext === 'zip' && !result.filePath.toLowerCase().endsWith('.kmz'))) {
+        if (!result.buffer) throw new Error('Failed to read binary file')
         const binaryString = atob(result.buffer)
         const bytes = new Uint8Array(binaryString.length)
         for (let i = 0; i < binaryString.length; i++) {
@@ -77,8 +86,38 @@ export function LayerPanel() {
         }
         const data = await shp(bytes.buffer) as GeoJSON.GeoJSON
         await addLayerWithData(data, fileName)
+      } else if (ext === 'kml') {
+        if (!result.content) throw new Error('Failed to read KML file')
+        const data = parseKML(result.content)
+        await addLayerWithData(data, fileName)
+      } else if (ext === 'kmz') {
+        if (!result.buffer) throw new Error('Failed to read KMZ file')
+        const binaryString = atob(result.buffer)
+        const bytes = new Uint8Array(binaryString.length)
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i)
+        }
+        // KMZ is a ZIP containing KML - extract and parse
+        const kmlContent = extractKMLFromBuffer(bytes)
+        if (!kmlContent) throw new Error('No KML file found in KMZ archive')
+        const data = parseKML(kmlContent)
+        await addLayerWithData(data, fileName)
+      } else if (ext === 'csv' || ext === 'tsv') {
+        if (!result.content) throw new Error('Failed to read CSV file')
+        const headers = getCSVHeaders(result.content)
+        const detected = autoDetectCoordinateColumns(headers)
+        if (detected.lat && detected.lng) {
+          const data = parseCSV(result.content, { latColumn: detected.lat, lngColumn: detected.lng })
+          await addLayerWithData(data, fileName)
+        } else {
+          setCsvContent(result.content)
+          setCsvFileName(fileName)
+          setCsvHeaders(headers)
+          setCsvLatCol(detected.lat || '')
+          setCsvLngCol(detected.lng || '')
+          setShowCsvDialog(true)
+        }
       } else {
-        // Parse GeoJSON
         if (!result.content) return
         const data = JSON.parse(result.content) as GeoJSON.GeoJSON
         await addLayerWithData(data, fileName)
@@ -86,6 +125,23 @@ export function LayerPanel() {
     } catch (e) {
       console.error('Failed to load file:', e)
       alert(`Failed to load file: ${e instanceof Error ? e.message : 'Unknown error'}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleCsvConfirm = async () => {
+    if (!csvLatCol || !csvLngCol) {
+      alert('Please select both latitude and longitude columns')
+      return
+    }
+    setIsLoading(true)
+    try {
+      const data = parseCSV(csvContent, { latColumn: csvLatCol, lngColumn: csvLngCol })
+      await addLayerWithData(data, csvFileName)
+      setShowCsvDialog(false)
+    } catch (e) {
+      alert(`Failed to parse CSV: ${e instanceof Error ? e.message : 'Unknown error'}`)
     } finally {
       setIsLoading(false)
     }
@@ -118,9 +174,7 @@ export function LayerPanel() {
           }
         }
         addLayer(layerConfig)
-        if (backend) {
-          await backend.addLayer(layerConfig)
-        }
+        if (backend) await backend.addLayer(layerConfig)
       } else if (urlType === 'pmtiles') {
         const layerConfig: UnifiedLayerConfig = {
           id: `layer-${Date.now()}`,
@@ -134,19 +188,72 @@ export function LayerPanel() {
           }
         }
         addLayer(layerConfig)
-        if (backend) {
-          await backend.addLayer(layerConfig)
+        if (backend) await backend.addLayer(layerConfig)
+      } else if (urlType === 'wms') {
+        const layerNames = wmsLayers.trim() || '0'
+        const tileUrl = `${url}${url.includes('?') ? '&' : '?'}SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&LAYERS=${layerNames}&SRS=EPSG:3857&STYLES=&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}`
+        const layerConfig: UnifiedLayerConfig = {
+          id: `layer-${Date.now()}`,
+          name: `WMS: ${layerNames}`,
+          type: 'raster',
+          visible: true,
+          opacity: 1,
+          source: {
+            type: 'raster',
+            tiles: [tileUrl],
+            attribution: url
+          }
         }
+        addLayer(layerConfig)
+        if (backend) await backend.addLayer(layerConfig)
+      } else if (urlType === 'wmts') {
+        const layerNames = wmsLayers.trim() || '0'
+        const layerConfig: UnifiedLayerConfig = {
+          id: `layer-${Date.now()}`,
+          name: `WMTS: ${layerNames}`,
+          type: 'raster',
+          visible: true,
+          opacity: 1,
+          source: {
+            type: 'raster',
+            url: url,
+            tiles: [url]
+          }
+        }
+        addLayer(layerConfig)
+        if (backend) await backend.addLayer(layerConfig)
       }
 
       setShowUrlDialog(false)
       setUrlInput('')
+      setWmsLayers('')
     } catch (e) {
       console.error('Failed to load from URL:', e)
       alert(`Failed to load from URL: ${e instanceof Error ? e.message : 'Unknown error'}`)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleDragStart = (index: number) => {
+    dragItemRef.current = index
+  }
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    dragOverRef.current = index
+  }
+
+  const handleDragEnd = () => {
+    if (dragItemRef.current !== null && dragOverRef.current !== null && dragItemRef.current !== dragOverRef.current) {
+      // Convert from reversed display indices to actual layer indices
+      const totalLayers = layers.length
+      const sourceIndex = totalLayers - 1 - dragItemRef.current
+      const targetIndex = totalLayers - 1 - dragOverRef.current
+      reorderLayers(sourceIndex, targetIndex)
+    }
+    dragItemRef.current = null
+    dragOverRef.current = null
   }
 
   const reversedLayers = [...layers].reverse()
@@ -158,7 +265,7 @@ export function LayerPanel() {
           onClick={handleAddFile}
           disabled={isLoading}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-slate-700 px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors disabled:opacity-50"
-          title="Add file (GeoJSON, Shapefile)"
+          title="Add file (GeoJSON, Shapefile, KML, CSV)"
         >
           <Plus className="h-4 w-4" />
           {isLoading ? 'Loading...' : 'Add File'}
@@ -191,10 +298,12 @@ export function LayerPanel() {
                 <option value="cog">Cloud Optimized GeoTIFF (COG)</option>
                 <option value="pmtiles">PMTiles</option>
                 <option value="xyz">XYZ Tiles</option>
+                <option value="wms">WMS Service</option>
+                <option value="wmts">WMTS Service</option>
               </select>
             </div>
 
-            <div className="mb-8">
+            <div className="mb-6">
               <label className="mb-3 block text-sm font-medium text-slate-300">URL</label>
               <input
                 type="url"
@@ -204,18 +313,31 @@ export function LayerPanel() {
                   urlType === 'geojson' ? 'https://example.com/data.geojson' :
                   urlType === 'cog' ? 'https://example.com/image.tif' :
                   urlType === 'pmtiles' ? 'https://example.com/tiles.pmtiles' :
+                  urlType === 'wms' ? 'https://example.com/wms' :
+                  urlType === 'wmts' ? 'https://example.com/wmts' :
                   'https://example.com/tiles/{z}/{x}/{y}.png'
                 }
                 className="w-full rounded-lg border border-slate-500 bg-slate-700 px-4 py-3 text-sm text-slate-200 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
 
+            {(urlType === 'wms' || urlType === 'wmts') && (
+              <div className="mb-8">
+                <label className="mb-3 block text-sm font-medium text-slate-300">Layer Name(s)</label>
+                <input
+                  type="text"
+                  value={wmsLayers}
+                  onChange={(e) => setWmsLayers(e.target.value)}
+                  placeholder="layer1,layer2"
+                  className="w-full rounded-lg border border-slate-500 bg-slate-700 px-4 py-3 text-sm text-slate-200 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+                <p className="mt-1 text-xs text-slate-500">Comma-separated WMS layer names</p>
+              </div>
+            )}
+
             <div className="flex justify-end gap-4 pt-4 border-t border-slate-700">
               <button
-                onClick={() => {
-                  setShowUrlDialog(false)
-                  setUrlInput('')
-                }}
+                onClick={() => { setShowUrlDialog(false); setUrlInput(''); setWmsLayers('') }}
                 className="rounded-lg px-6 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
               >
                 Cancel
@@ -232,16 +354,72 @@ export function LayerPanel() {
         </div>
       )}
 
+      {/* CSV Column Selection Dialog */}
+      {showCsvDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-8">
+          <div className="w-full max-w-md rounded-2xl bg-slate-800 p-8 shadow-2xl border border-slate-600">
+            <h3 className="mb-6 text-xl font-semibold text-slate-100">Select Coordinate Columns</h3>
+            <p className="mb-6 text-sm text-slate-400">
+              Could not auto-detect coordinate columns. Please select the latitude and longitude columns.
+            </p>
+
+            <div className="mb-4">
+              <label className="mb-2 block text-sm font-medium text-slate-300">Latitude Column</label>
+              <select
+                value={csvLatCol}
+                onChange={e => setCsvLatCol(e.target.value)}
+                className="w-full rounded-lg border border-slate-500 bg-slate-700 px-4 py-3 text-sm text-slate-200 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">— Select —</option>
+                {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+              </select>
+            </div>
+
+            <div className="mb-6">
+              <label className="mb-2 block text-sm font-medium text-slate-300">Longitude Column</label>
+              <select
+                value={csvLngCol}
+                onChange={e => setCsvLngCol(e.target.value)}
+                className="w-full rounded-lg border border-slate-500 bg-slate-700 px-4 py-3 text-sm text-slate-200 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">— Select —</option>
+                {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => setShowCsvDialog(false)}
+                className="rounded-lg px-6 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCsvConfirm}
+                disabled={!csvLatCol || !csvLngCol || isLoading}
+                className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+              >
+                {isLoading ? 'Loading...' : 'Load CSV'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {layers.length === 0 ? (
         <div className="py-6 text-center text-sm text-slate-400">
           No layers yet. Add a file or URL to get started.
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {reversedLayers.map((layer) => (
+          {reversedLayers.map((layer, displayIndex) => (
             <LayerItem
               key={layer.id}
               layer={layer}
+              index={displayIndex}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
             />
           ))}
         </div>
@@ -250,69 +428,40 @@ export function LayerPanel() {
   )
 }
 
-function getRandomColor(): string {
-  const colors = [
-    '#3b82f6', // blue
-    '#ef4444', // red
-    '#22c55e', // green
-    '#f59e0b', // amber
-    '#8b5cf6', // violet
-    '#ec4899', // pink
-    '#06b6d4', // cyan
-    '#f97316'  // orange
-  ]
-  return colors[Math.floor(Math.random() * colors.length)]
-}
+function extractKMLFromBuffer(data: Uint8Array): string | null {
+  let offset = 0
+  const decoder = new TextDecoder()
 
-function calculateBounds(geojson: GeoJSON.GeoJSON): [[number, number], [number, number]] | null {
-  const coords: [number, number][] = []
+  while (offset < data.length - 4) {
+    if (data[offset] === 0x50 && data[offset + 1] === 0x4b &&
+        data[offset + 2] === 0x03 && data[offset + 3] === 0x04) {
 
-  function extractCoords(geometry: GeoJSON.Geometry) {
-    switch (geometry.type) {
-      case 'Point':
-        coords.push(geometry.coordinates as [number, number])
-        break
-      case 'MultiPoint':
-      case 'LineString':
-        (geometry.coordinates as [number, number][]).forEach(c => coords.push(c))
-        break
-      case 'MultiLineString':
-      case 'Polygon':
-        (geometry.coordinates as [number, number][][]).forEach(ring =>
-          ring.forEach(c => coords.push(c))
-        )
-        break
-      case 'MultiPolygon':
-        (geometry.coordinates as [number, number][][][]).forEach(polygon =>
-          polygon.forEach(ring => ring.forEach(c => coords.push(c)))
-        )
-        break
-      case 'GeometryCollection':
-        geometry.geometries.forEach(g => extractCoords(g))
-        break
+      const compressionMethod = data[offset + 8] | (data[offset + 9] << 8)
+      const compressedSize = data[offset + 18] | (data[offset + 19] << 8) |
+                             (data[offset + 20] << 16) | (data[offset + 21] << 24)
+      const fileNameLength = data[offset + 26] | (data[offset + 27] << 8)
+      const extraFieldLength = data[offset + 28] | (data[offset + 29] << 8)
+
+      const fileName = decoder.decode(data.slice(offset + 30, offset + 30 + fileNameLength))
+      const dataStart = offset + 30 + fileNameLength + extraFieldLength
+
+      if (fileName.toLowerCase().endsWith('.kml') && compressionMethod === 0) {
+        const fileData = data.slice(dataStart, dataStart + compressedSize)
+        return decoder.decode(fileData)
+      }
+
+      offset = dataStart + compressedSize
+    } else {
+      offset++
     }
   }
+  return null
+}
 
-  if (geojson.type === 'Feature') {
-    if (geojson.geometry) extractCoords(geojson.geometry)
-  } else if (geojson.type === 'FeatureCollection') {
-    geojson.features.forEach(f => {
-      if (f.geometry) extractCoords(f.geometry)
-    })
-  } else {
-    extractCoords(geojson as GeoJSON.Geometry)
-  }
-
-  if (coords.length === 0) return null
-
-  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
-
-  coords.forEach(([lng, lat]) => {
-    if (lng < minLng) minLng = lng
-    if (lng > maxLng) maxLng = lng
-    if (lat < minLat) minLat = lat
-    if (lat > maxLat) maxLat = lat
-  })
-
-  return [[minLng, minLat], [maxLng, maxLat]]
+function getRandomColor(): string {
+  const colors = [
+    '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6',
+    '#ec4899', '#06b6d4', '#f97316'
+  ]
+  return colors[Math.floor(Math.random() * colors.length)]
 }

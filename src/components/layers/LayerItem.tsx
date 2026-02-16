@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Eye,
   EyeOff,
@@ -8,14 +8,27 @@ import {
   GripVertical,
   Map,
   Image,
-  Hexagon
+  Hexagon,
+  Copy,
+  Edit3,
+  Palette,
+  Table2,
+  ZoomIn,
+  Download
 } from 'lucide-react'
 import { useProjectStore } from '../../stores/projectStore'
 import { useMapStore } from '../../stores/mapStore'
+import { useUIStore } from '../../stores/uiStore'
 import type { UnifiedLayerConfig } from '../../types/project'
+import { calculateBounds } from '../../utils/geo'
+import { exportToGeoJSON } from '../../utils/export'
 
 interface LayerItemProps {
   layer: UnifiedLayerConfig
+  index: number
+  onDragStart: (index: number) => void
+  onDragOver: (e: React.DragEvent, index: number) => void
+  onDragEnd: () => void
 }
 
 const typeIcons: Record<string, React.ElementType> = {
@@ -29,14 +42,41 @@ const typeIcons: Record<string, React.ElementType> = {
   'point-cloud': Hexagon
 }
 
-export function LayerItem({ layer }: LayerItemProps) {
+export function LayerItem({ layer, index, onDragStart, onDragOver, onDragEnd }: LayerItemProps) {
   const [expanded, setExpanded] = useState(false)
-  const { selectedLayerId, setSelectedLayer, toggleLayerVisibility, setLayerOpacity, removeLayer } =
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [newName, setNewName] = useState(layer.name)
+  const [showContextMenu, setShowContextMenu] = useState(false)
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 })
+  const { selectedLayerId, setSelectedLayer, toggleLayerVisibility, setLayerOpacity, removeLayer, updateLayer, addLayer } =
     useProjectStore()
   const { backend } = useMapStore()
+  const { setShowAttributeTable, setShowStyleEditor } = useUIStore()
+  const renameInputRef = useRef<HTMLInputElement>(null)
+  const contextMenuRef = useRef<HTMLDivElement>(null)
 
   const isSelected = selectedLayerId === layer.id
   const Icon = typeIcons[layer.type] || Map
+
+  useEffect(() => {
+    if (isRenaming && renameInputRef.current) {
+      renameInputRef.current.focus()
+      renameInputRef.current.select()
+    }
+  }, [isRenaming])
+
+  // Close context menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setShowContextMenu(false)
+      }
+    }
+    if (showContextMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showContextMenu])
 
   const handleToggleVisibility = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -46,8 +86,8 @@ export function LayerItem({ layer }: LayerItemProps) {
     }
   }
 
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleDelete = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
     removeLayer(layer.id)
     if (backend) {
       backend.removeLayer(layer.id)
@@ -66,95 +106,269 @@ export function LayerItem({ layer }: LayerItemProps) {
     setSelectedLayer(isSelected ? null : layer.id)
   }
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenuPos({ x: e.clientX, y: e.clientY })
+    setShowContextMenu(true)
+  }
+
+  const handleRename = () => {
+    setIsRenaming(true)
+    setNewName(layer.name)
+    setShowContextMenu(false)
+  }
+
+  const handleRenameConfirm = () => {
+    if (newName.trim()) {
+      updateLayer(layer.id, { name: newName.trim() })
+    }
+    setIsRenaming(false)
+  }
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleRenameConfirm()
+    if (e.key === 'Escape') setIsRenaming(false)
+  }
+
+  const handleDuplicate = () => {
+    setShowContextMenu(false)
+    const newLayer: UnifiedLayerConfig = {
+      ...layer,
+      id: `layer-${Date.now()}`,
+      name: `${layer.name} (copy)`
+    }
+    addLayer(newLayer)
+    if (backend) {
+      backend.addLayer(newLayer).catch(console.error)
+    }
+  }
+
+  const handleZoomToLayer = () => {
+    setShowContextMenu(false)
+    if (layer.type === 'geojson' && layer.source.data && backend) {
+      const bounds = calculateBounds(layer.source.data as GeoJSON.GeoJSON)
+      if (bounds) {
+        backend.fitBounds(bounds, 50)
+      }
+    }
+  }
+
+  const handleOpenAttributes = () => {
+    setShowContextMenu(false)
+    if (layer.type === 'geojson' && layer.source.data) {
+      setShowAttributeTable(true, layer.id)
+    }
+  }
+
+  const handleOpenStyleEditor = () => {
+    setShowContextMenu(false)
+    setShowStyleEditor(true, layer.id)
+  }
+
+  const handleExportLayer = () => {
+    setShowContextMenu(false)
+    if (layer.type === 'geojson' && layer.source.data) {
+      exportToGeoJSON(layer.source.data as GeoJSON.GeoJSON, layer.name)
+    }
+  }
+
   return (
-    <div
-      className={`rounded-lg border transition-all ${
-        isSelected
-          ? 'border-blue-500/50 bg-slate-800 ring-1 ring-blue-500/30'
-          : 'border-slate-700 bg-slate-800/30 hover:bg-slate-800/60 hover:border-slate-600'
-      }`}
-    >
+    <>
       <div
-        className="flex cursor-pointer items-center gap-2 px-3 py-2.5"
-        onClick={handleSelect}
+        className={`rounded-lg border transition-all ${
+          isSelected
+            ? 'border-blue-500/50 bg-slate-800 ring-1 ring-blue-500/30'
+            : 'border-slate-700 bg-slate-800/30 hover:bg-slate-800/60 hover:border-slate-600'
+        }`}
+        draggable
+        onDragStart={() => onDragStart(index)}
+        onDragOver={(e) => onDragOver(e, index)}
+        onDragEnd={onDragEnd}
+        onContextMenu={handleContextMenu}
       >
-        <GripVertical className="h-3.5 w-3.5 cursor-grab text-slate-500" />
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            setExpanded(!expanded)
-          }}
-          className="p-0.5 rounded hover:bg-slate-700"
+        <div
+          className="flex cursor-pointer items-center gap-2 px-3 py-2.5"
+          onClick={handleSelect}
         >
-          {expanded ? (
-            <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+          <GripVertical className="h-3.5 w-3.5 cursor-grab text-slate-500 hover:text-slate-300" />
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setExpanded(!expanded)
+            }}
+            className="p-0.5 rounded hover:bg-slate-700"
+          >
+            {expanded ? (
+              <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+            )}
+          </button>
+
+          <Icon className="h-4 w-4 text-blue-400 flex-shrink-0" />
+
+          {isRenaming ? (
+            <input
+              ref={renameInputRef}
+              type="text"
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onBlur={handleRenameConfirm}
+              onKeyDown={handleRenameKeyDown}
+              onClick={e => e.stopPropagation()}
+              className="flex-1 rounded bg-slate-700 px-1.5 py-0.5 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
           ) : (
-            <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+            <span
+              className={`flex-1 truncate text-sm ${
+                layer.visible ? 'text-slate-200' : 'text-slate-500'
+              }`}
+              onDoubleClick={(e) => { e.stopPropagation(); handleRename() }}
+            >
+              {layer.name}
+            </span>
           )}
-        </button>
 
-        <Icon className="h-4 w-4 text-blue-400" />
+          <button
+            onClick={handleToggleVisibility}
+            className="rounded p-1.5 hover:bg-slate-700"
+            title={layer.visible ? 'Hide layer' : 'Show layer'}
+          >
+            {layer.visible ? (
+              <Eye className="h-4 w-4 text-slate-400" />
+            ) : (
+              <EyeOff className="h-4 w-4 text-slate-500" />
+            )}
+          </button>
 
-        <span
-          className={`flex-1 truncate text-sm ${
-            layer.visible ? 'text-slate-200' : 'text-slate-500'
-          }`}
-        >
-          {layer.name}
-        </span>
+          <button
+            onClick={(e) => handleDelete(e)}
+            className="rounded p-1.5 hover:bg-red-900/30"
+            title="Remove layer"
+          >
+            <Trash2 className="h-4 w-4 text-slate-400 hover:text-red-400" />
+          </button>
+        </div>
 
-        <button
-          onClick={handleToggleVisibility}
-          className="rounded p-1.5 hover:bg-slate-700"
-          title={layer.visible ? 'Hide layer' : 'Show layer'}
-        >
-          {layer.visible ? (
-            <Eye className="h-4 w-4 text-slate-400" />
-          ) : (
-            <EyeOff className="h-4 w-4 text-slate-500" />
-          )}
-        </button>
+        {expanded && (
+          <div className="border-t border-slate-700 bg-slate-800/50 px-3 py-3">
+            <div className="mb-3">
+              <label className="mb-1.5 block text-xs font-medium text-slate-400">Opacity</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={layer.opacity}
+                  onChange={handleOpacityChange}
+                  className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-slate-600"
+                />
+                <span className="w-10 text-right text-xs font-medium text-slate-300">
+                  {Math.round(layer.opacity * 100)}%
+                </span>
+              </div>
+            </div>
 
-        <button
-          onClick={handleDelete}
-          className="rounded p-1.5 hover:bg-red-900/30"
-          title="Remove layer"
-        >
-          <Trash2 className="h-4 w-4 text-slate-400 hover:text-red-400" />
-        </button>
-      </div>
+            {/* Quick action buttons */}
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {layer.type === 'geojson' && (
+                <>
+                  <button
+                    onClick={handleOpenStyleEditor}
+                    className="flex items-center gap-1 rounded-md bg-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-600"
+                  >
+                    <Palette className="h-3 w-3" /> Style
+                  </button>
+                  {layer.source.data && (
+                    <button
+                      onClick={handleOpenAttributes}
+                      className="flex items-center gap-1 rounded-md bg-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-600"
+                    >
+                      <Table2 className="h-3 w-3" /> Attributes
+                    </button>
+                  )}
+                  <button
+                    onClick={handleZoomToLayer}
+                    className="flex items-center gap-1 rounded-md bg-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-600"
+                  >
+                    <ZoomIn className="h-3 w-3" /> Zoom To
+                  </button>
+                </>
+              )}
+            </div>
 
-      {expanded && (
-        <div className="border-t border-slate-700 bg-slate-800/50 px-3 py-3">
-          <div className="mb-3">
-            <label className="mb-1.5 block text-xs font-medium text-slate-400">Opacity</label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={layer.opacity}
-                onChange={handleOpacityChange}
-                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-slate-600"
-              />
-              <span className="w-10 text-right text-xs font-medium text-slate-300">
-                {Math.round(layer.opacity * 100)}%
-              </span>
+            <div className="text-xs text-slate-400 space-y-0.5">
+              <div>Type: <span className="text-slate-300">{layer.type}</span></div>
+              {layer.source.url && (
+                <div className="truncate" title={layer.source.url}>
+                  Source: <span className="text-slate-300">{layer.source.url}</span>
+                </div>
+              )}
+              {layer.style?.fillColor && (
+                <div className="flex items-center gap-1.5">
+                  Style:
+                  <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: layer.style.fillColor }} />
+                  <span className="text-slate-300">{layer.style.fillColor}</span>
+                </div>
+              )}
             </div>
           </div>
+        )}
+      </div>
 
-          <div className="text-xs text-slate-400 space-y-0.5">
-            <div>Type: <span className="text-slate-300">{layer.type}</span></div>
-            {layer.source.url && (
-              <div className="truncate" title={layer.source.url}>
-                Source: <span className="text-slate-300">{layer.source.url}</span>
-              </div>
-            )}
-          </div>
+      {/* Context Menu */}
+      {showContextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-[70] rounded-lg bg-slate-800 border border-slate-600 shadow-2xl py-1.5 min-w-[180px]"
+          style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
+        >
+          <ContextMenuItem icon={Edit3} label="Rename" onClick={handleRename} />
+          <ContextMenuItem icon={Copy} label="Duplicate" onClick={handleDuplicate} />
+          <ContextMenuItem icon={ZoomIn} label="Zoom to Layer" onClick={handleZoomToLayer} disabled={layer.type !== 'geojson'} />
+          <div className="my-1 border-t border-slate-700" />
+          {layer.type === 'geojson' && (
+            <>
+              <ContextMenuItem icon={Table2} label="Attribute Table" onClick={handleOpenAttributes} disabled={!layer.source.data} />
+              <ContextMenuItem icon={Palette} label="Edit Style" onClick={handleOpenStyleEditor} />
+              <ContextMenuItem icon={Download} label="Export Layer" onClick={handleExportLayer} disabled={!layer.source.data} />
+              <div className="my-1 border-t border-slate-700" />
+            </>
+          )}
+          <ContextMenuItem
+            icon={layer.visible ? EyeOff : Eye}
+            label={layer.visible ? 'Hide' : 'Show'}
+            onClick={() => { handleToggleVisibility({ stopPropagation: () => {} } as React.MouseEvent); setShowContextMenu(false) }}
+          />
+          <ContextMenuItem icon={Trash2} label="Remove" onClick={() => { handleDelete(); setShowContextMenu(false) }} danger />
         </div>
       )}
-    </div>
+    </>
+  )
+}
+
+function ContextMenuItem({ icon: Icon, label, onClick, disabled, danger }: {
+  icon: React.ElementType
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  danger?: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors disabled:opacity-40 ${
+        danger
+          ? 'text-red-400 hover:bg-red-900/20'
+          : 'text-slate-300 hover:bg-slate-700'
+      }`}
+    >
+      <Icon className="h-4 w-4 flex-shrink-0" />
+      {label}
+    </button>
   )
 }

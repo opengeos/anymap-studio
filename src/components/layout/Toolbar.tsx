@@ -10,14 +10,19 @@ import {
   Square,
   Circle,
   Minus,
-  Pentagon
+  Pentagon,
+  MousePointer,
+  MapPin,
+  Download,
+  Command
 } from 'lucide-react'
 import { useUIStore } from '../../stores/uiStore'
 import { useProjectStore } from '../../stores/projectStore'
 import { useMapStore } from '../../stores/mapStore'
+import { calculateBounds as computeBounds } from '../../utils/geo'
 
 export function Toolbar() {
-  const { sidebarOpen, toggleSidebar, setView, activeTool, setActiveTool, clearMeasurement } = useUIStore()
+  const { sidebarOpen, toggleSidebar, setView, activeTool, setActiveTool, clearMeasurement, setShowGoToCoordinates, setShowExportDialog, setShowCommandPalette } = useUIStore()
   const { name, isDirty, filePath } = useProjectStore()
   const { backend, zoom } = useMapStore()
 
@@ -42,6 +47,14 @@ export function Toolbar() {
       setActiveTool('none')
     } else {
       setActiveTool(tool)
+    }
+  }
+
+  const handleIdentify = () => {
+    if (activeTool === 'identify') {
+      setActiveTool('none')
+    } else {
+      setActiveTool('identify')
     }
   }
 
@@ -78,7 +91,28 @@ export function Toolbar() {
   }
 
   const handleFitBounds = () => {
-    // Will implement based on layer extents
+    if (!backend) return
+    const projectLayers = useProjectStore.getState().layers
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+    let hasBounds = false
+
+    for (const layer of projectLayers) {
+      if (layer.type === 'geojson' && layer.source.data && layer.visible) {
+        const geojson = layer.source.data as GeoJSON.GeoJSON
+        const bounds = computeBounds(geojson)
+        if (bounds) {
+          hasBounds = true
+          if (bounds[0][0] < minLng) minLng = bounds[0][0]
+          if (bounds[0][1] < minLat) minLat = bounds[0][1]
+          if (bounds[1][0] > maxLng) maxLng = bounds[1][0]
+          if (bounds[1][1] > maxLat) maxLat = bounds[1][1]
+        }
+      }
+    }
+
+    if (hasBounds) {
+      backend.fitBounds([[minLng, minLat], [maxLng, maxLat]], 50)
+    }
   }
 
   const handleSave = async () => {
@@ -103,11 +137,11 @@ export function Toolbar() {
 
   return (
     <header className="flex h-12 items-center border-b border-slate-700 bg-slate-900 px-3">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <button
           onClick={toggleSidebar}
           className="rounded p-1.5 hover:bg-slate-700"
-          title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+          title={sidebarOpen ? 'Hide sidebar (Ctrl+B)' : 'Show sidebar (Ctrl+B)'}
         >
           {sidebarOpen ? (
             <PanelLeftClose className="h-5 w-5 text-slate-400" />
@@ -124,22 +158,30 @@ export function Toolbar() {
           <Home className="h-5 w-5 text-slate-400" />
         </button>
 
-        <div className="mx-2 h-6 w-px bg-slate-700" />
+        <div className="mx-1.5 h-6 w-px bg-slate-700" />
 
         <button
           onClick={handleSave}
           className="rounded p-1.5 hover:bg-slate-700"
-          title="Save project"
+          title="Save project (Ctrl+S)"
         >
           <Save className="h-5 w-5 text-slate-400" />
         </button>
 
-        <div className="mx-2 h-6 w-px bg-slate-700" />
+        <div className="mx-1.5 h-6 w-px bg-slate-700" />
+
+        <button
+          onClick={handleIdentify}
+          className={`rounded p-1.5 ${activeTool === 'identify' ? 'bg-amber-600' : 'hover:bg-slate-700'}`}
+          title="Identify features (I)"
+        >
+          <MousePointer className={`h-5 w-5 ${activeTool === 'identify' ? 'text-white' : 'text-slate-400'}`} />
+        </button>
 
         <button
           onClick={handleMeasureDistance}
           className={`rounded p-1.5 ${activeTool === 'measure-distance' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}
-          title="Measure distance"
+          title="Measure distance (M)"
         >
           <Ruler className={`h-5 w-5 ${activeTool === 'measure-distance' ? 'text-white' : 'text-slate-400'}`} />
         </button>
@@ -152,7 +194,7 @@ export function Toolbar() {
           <Square className={`h-5 w-5 ${activeTool === 'measure-area' ? 'text-white' : 'text-slate-400'}`} />
         </button>
 
-        <div className="mx-2 h-6 w-px bg-slate-700" />
+        <div className="mx-1.5 h-6 w-px bg-slate-700" />
 
         <button
           onClick={() => handleDraw('draw-point')}
@@ -176,6 +218,32 @@ export function Toolbar() {
           title="Draw polygon"
         >
           <Pentagon className={`h-5 w-5 ${activeTool === 'draw-polygon' ? 'text-white' : 'text-slate-400'}`} />
+        </button>
+
+        <div className="mx-1.5 h-6 w-px bg-slate-700" />
+
+        <button
+          onClick={() => setShowGoToCoordinates(true)}
+          className="rounded p-1.5 hover:bg-slate-700"
+          title="Go to coordinates (Ctrl+G)"
+        >
+          <MapPin className="h-5 w-5 text-slate-400" />
+        </button>
+
+        <button
+          onClick={() => setShowExportDialog(true)}
+          className="rounded p-1.5 hover:bg-slate-700"
+          title="Export (Ctrl+E)"
+        >
+          <Download className="h-5 w-5 text-slate-400" />
+        </button>
+
+        <button
+          onClick={() => setShowCommandPalette(true)}
+          className="rounded p-1.5 hover:bg-slate-700"
+          title="Command palette (Ctrl+Shift+P)"
+        >
+          <Command className="h-5 w-5 text-slate-400" />
         </button>
       </div>
 
@@ -210,7 +278,7 @@ export function Toolbar() {
         <button
           onClick={handleFitBounds}
           className="rounded p-1.5 hover:bg-slate-700"
-          title="Fit to bounds"
+          title="Fit to all layers (Ctrl+0)"
         >
           <Maximize2 className="h-5 w-5 text-slate-400" />
         </button>
