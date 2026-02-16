@@ -94,7 +94,7 @@ export function AttributeTable() {
   }
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-40 flex flex-col bg-slate-900 border-t border-slate-700" style={{ height: '40%', minHeight: 200 }}>
+    <div className="flex flex-col bg-slate-900 border-t border-slate-700" style={{ height: 280, minHeight: 200 }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-800/50">
         <div className="flex items-center gap-3">

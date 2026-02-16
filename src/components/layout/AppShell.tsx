@@ -119,12 +119,16 @@ export function AppShell() {
       <div className="flex flex-1 overflow-hidden">
         {sidebarOpen && <Sidebar />}
 
-        <main className="relative flex-1 overflow-hidden">
-          <MapCanvas />
-          <MeasureTool />
-          <DrawTool />
+        <div className="relative flex flex-1 flex-col overflow-hidden">
+          <main className="relative flex-1 overflow-hidden">
+            <MapCanvas />
+            <MeasureTool />
+            <DrawTool />
+          </main>
+
+          {/* Attribute Table - flex child that takes space from map */}
           <AttributeTable />
-        </main>
+        </div>
       </div>
 
       {statusBarVisible && <StatusBar />}
