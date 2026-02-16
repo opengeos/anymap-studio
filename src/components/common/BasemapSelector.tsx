@@ -34,30 +34,31 @@ const basemaps: BasemapOption[] = [
 ]
 
 export function BasemapSelector() {
-  const { backend, backendType } = useMapStore()
+  const { backend } = useMapStore()
   const [selectedId, setSelectedId] = useState('liberty')
   const [isChanging, setIsChanging] = useState(false)
 
   const handleBasemapChange = async (basemap: BasemapOption) => {
-    if (!backend || backendType !== 'maplibre' || isChanging) return
+    if (!backend || backend.type !== 'maplibre' || isChanging) return
 
     const map = backend.getNativeMap() as maplibregl.Map | null
     if (!map) return
 
     setIsChanging(true)
+    setSelectedId(basemap.id)
 
     // Save current layers from the adapter
-    const currentLayers = backend.getLayers()
+    const currentLayers = [...backend.getLayers()]
+
+    // Clear internal layer tracking before style change
+    ;(backend as MapLibreAdapter).clearLayerTracking()
 
     // Change the style
     map.setStyle(basemap.url)
 
     // Wait for style to load, then re-add layers
     map.once('style.load', async () => {
-      // Clear internal layer tracking since map sources were removed
-      (backend as MapLibreAdapter).clearLayerTracking()
-
-      // Re-add all layers from project store
+      // Re-add all layers
       for (const layer of currentLayers) {
         try {
           await (backend as MapLibreAdapter).addLayer(layer)
@@ -67,8 +68,6 @@ export function BasemapSelector() {
       }
       setIsChanging(false)
     })
-
-    setSelectedId(basemap.id)
   }
 
   return (
