@@ -6,7 +6,7 @@ import { getPropertyKeys, getFeatureRows, calculateFieldStats } from '../../util
 import { exportToCSV } from '../../utils/export'
 
 export function AttributeTable() {
-  const { showAttributeTable, attributeTableLayerId, setShowAttributeTable, statusBarVisible } = useUIStore()
+  const { showAttributeTable, attributeTableLayerId, setShowAttributeTable } = useUIStore()
   const { layers } = useProjectStore()
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
@@ -93,14 +93,18 @@ export function AttributeTable() {
     }
   }
 
-  // Position above status bar (24px when visible)
-  const bottomOffset = statusBarVisible ? 24 : 0
-
   return (
-    <div
-      className="fixed left-0 right-0 z-50 flex flex-col bg-slate-900 border-t border-slate-700 shadow-2xl"
-      style={{ height: 280, bottom: bottomOffset }}
-    >
+    <div className="fixed inset-0 z-50 flex items-end justify-center">
+      {/* Backdrop - click to close */}
+      <div
+        className="absolute inset-0 bg-black/30"
+        onClick={() => setShowAttributeTable(false)}
+      />
+      {/* Table panel */}
+      <div
+        className="relative w-full flex flex-col bg-slate-900 border-t border-slate-700 shadow-2xl"
+        style={{ height: '40vh', maxHeight: 400, minHeight: 250 }}
+      >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700 bg-slate-800/50">
         <div className="flex items-center gap-3">
@@ -219,6 +223,7 @@ export function AttributeTable() {
           </button>
         </div>
       )}
+      </div>
     </div>
   )
 }
