@@ -233,6 +233,22 @@ export function MapCanvas() {
     }
   }, [backendType])
 
+  // Handle container resize (e.g., when attribute table opens/closes)
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const resizeObserver = new ResizeObserver(() => {
+      const map = backendRef.current?.getNativeMap() as maplibregl.Map | null
+      if (map) {
+        map.resize()
+      }
+    })
+
+    resizeObserver.observe(container)
+    return () => resizeObserver.disconnect()
+  }, [])
+
   // Update cursor style based on active tool
   useEffect(() => {
     const map = backendRef.current?.getNativeMap() as maplibregl.Map | null
