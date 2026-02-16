@@ -27,9 +27,19 @@ const basemaps: BasemapOption[] = [
     url: 'https://tiles.openfreemap.org/styles/positron'
   },
   {
-    id: 'demotiles',
-    name: 'MapLibre Demo',
-    url: 'https://demotiles.maplibre.org/style.json'
+    id: 'carto-dark-matter',
+    name: 'CartoDB Dark Matter',
+    url: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+  },
+  {
+    id: 'carto-positron',
+    name: 'CartoDB Positron',
+    url: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
+  },
+  {
+    id: 'carto-voyager',
+    name: 'CartoDB Voyager',
+    url: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
   }
 ]
 

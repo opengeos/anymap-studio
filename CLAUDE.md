@@ -28,17 +28,18 @@ anymap-studio/
 │   ├── components/
 │   │   ├── layout/     # AppShell, Toolbar, Sidebar, StatusBar
 │   │   ├── map/        # MapCanvas, MapControls
-│   │   ├── layers/     # LayerPanel, LayerItem
+│   │   ├── layers/     # LayerPanel, LayerItem, AttributeTable, StyleEditor
 │   │   ├── landing/    # LandingPage, BackendSelector
 │   │   ├── tools/      # MeasureTool, DrawTool
-│   │   └── common/     # BasemapSelector, shared components
+│   │   └── common/     # BasemapSelector, CommandPalette, GoToCoordinates, ExportDialog, SettingsPanel
 │   ├── backends/
 │   │   ├── types.ts    # IMapBackend interface
 │   │   ├── capabilities.ts  # Backend capability matrix
 │   │   ├── index.ts    # Backend factory with lazy loading
 │   │   └── adapters/   # MapLibreAdapter, CesiumAdapter, etc.
 │   ├── stores/         # Zustand stores (ui, map, project)
-│   └── types/          # TypeScript definitions
+│   ├── types/          # TypeScript definitions
+│   └── utils/          # Parsing, geo, and export utilities
 └── build/              # App icons
 ```
 
@@ -77,6 +78,9 @@ npm run dist     # Build distributable packages
 - `src/backends/adapters/MapLibreAdapter.ts` - Primary map backend
 - `src/stores/projectStore.ts` - Project state (layers, view, save/load)
 - `src/components/layers/LayerPanel.tsx` - Layer management + zoom-to-data
+- `src/utils/parsers.ts` - KML, CSV file parsing
+- `src/utils/geo.ts` - Geospatial utilities (bounds, stats, formatting)
+- `src/utils/export.ts` - Export utilities (PNG, GeoJSON, CSV)
 - `src/index.css` - MapLibre control styling for dark theme
 
 ## Current Status
@@ -96,35 +100,55 @@ npm run dist     # Build distributable packages
 - Distance measurement tool (Haversine formula)
 - Area measurement tool (spherical excess)
 - Drawing tools (point, line, polygon)
+- KML/KMZ file loading
+- CSV with coordinates loading (auto-detect lat/lng columns)
+- WMS/WMTS service connections
+- Drag-and-drop file loading onto map
+- Layer reordering via drag-and-drop
+- Layer renaming (double-click or context menu)
+- Layer duplication
+- Layer context menu (right-click) with full options
+- Zoom to layer extent
+- Style editor (fill color, stroke, point radius, opacity)
+- Attribute table (view, sort, filter, statistics, export)
+- Feature identify tool (click to see attributes popup)
+- Export map to PNG
+- Export layer to GeoJSON and CSV
+- Go to coordinates dialog (Ctrl+G)
+- Command palette (Ctrl+Shift+P)
+- Keyboard shortcuts (I for identify, M for measure, Escape to cancel, etc.)
+- Settings dialog with coordinate format, sidebar width, etc.
+- Status bar with scale, CRS, coordinate format toggle
+- Fit to all layers bounds
 
 ## Remaining Tasks
 
 ### High Priority - Core GIS Features
 
 #### Data Loading & Formats
-- [ ] GeoTIFF/COG visualization with proper tile rendering
+- [x] GeoTIFF/COG visualization with proper tile rendering
 - [ ] GeoPackage (.gpkg) loading support
-- [ ] KML/KMZ file loading
-- [ ] CSV with coordinates (lat/lng columns)
-- [ ] WMS/WMTS service connections
+- [x] KML/KMZ file loading
+- [x] CSV with coordinates (lat/lng columns)
+- [x] WMS/WMTS service connections
 - [ ] WFS service connections
 - [ ] PostGIS database connections
-- [ ] Drag-and-drop file loading onto map
+- [x] Drag-and-drop file loading onto map
 
 #### Layer Management
-- [ ] Layer reordering via drag-and-drop
+- [x] Layer reordering via drag-and-drop
 - [ ] Layer groups/folders
-- [ ] Layer renaming
-- [ ] Duplicate layer
-- [ ] Layer context menu (right-click)
+- [x] Layer renaming
+- [x] Duplicate layer
+- [x] Layer context menu (right-click)
 - [ ] Layer metadata/properties panel
-- [ ] Layer extent info display
+- [x] Layer extent info display
 
 #### Styling & Symbology
-- [ ] Style editor panel for vector layers
-- [ ] Fill color picker with opacity
-- [ ] Stroke color/width/style editor
-- [ ] Point symbol selector (circle, square, icon)
+- [x] Style editor panel for vector layers
+- [x] Fill color picker with opacity
+- [x] Stroke color/width/style editor
+- [x] Point symbol selector (circle, square, icon)
 - [ ] Categorized styling (by attribute)
 - [ ] Graduated styling (numeric ranges)
 - [ ] Rule-based styling
@@ -132,24 +156,24 @@ npm run dist     # Build distributable packages
 - [ ] Save/load layer styles (.json)
 
 #### Attribute Table
-- [ ] View attributes in data grid
-- [ ] Sort by column
-- [ ] Filter/search attributes
+- [x] View attributes in data grid
+- [x] Sort by column
+- [x] Filter/search attributes
 - [ ] Select features from table (sync with map)
 - [ ] Edit attribute values
 - [ ] Add/remove fields
 - [ ] Field calculator (expressions)
-- [ ] Export selected features
-- [ ] Statistics panel (for numeric fields)
+- [x] Export selected features
+- [x] Statistics panel (for numeric fields)
 
 ### Medium Priority - Advanced Features
 
 #### Selection & Querying
-- [ ] Click to select feature
+- [x] Click to select feature
 - [ ] Box select multiple features
 - [ ] Polygon select
 - [ ] Select by attribute (SQL-like query)
-- [ ] Identify tool (click to see attributes)
+- [x] Identify tool (click to see attributes)
 - [ ] Feature info popup on hover
 
 #### Editing & Sketching
@@ -172,11 +196,11 @@ npm run dist     # Build distributable packages
 - [ ] Spatial join
 
 #### Export & Print
-- [ ] Export map to PNG
+- [x] Export map to PNG
 - [ ] Export map to PDF
 - [ ] Print layout composer
 - [ ] Add title, legend, scale bar, north arrow
-- [ ] Export layer to GeoJSON
+- [x] Export layer to GeoJSON
 - [ ] Export layer to Shapefile
 - [ ] Export layer to GeoPackage
 
@@ -211,8 +235,8 @@ npm run dist     # Build distributable packages
 ### UI/UX Improvements
 
 #### General UI
-- [ ] Command palette (Ctrl+Shift+P)
-- [ ] Keyboard shortcuts panel
+- [x] Command palette (Ctrl+Shift+P)
+- [x] Keyboard shortcuts panel
 - [ ] Customizable toolbar
 - [ ] Resizable sidebar panels
 - [ ] Floating/dockable panels
@@ -222,16 +246,16 @@ npm run dist     # Build distributable packages
 
 #### Navigation & View
 - [ ] Bookmarks/saved views
-- [ ] Go to coordinates dialog
+- [x] Go to coordinates dialog
 - [ ] Coordinate search (geocoding)
 - [ ] History (back/forward navigation)
 - [ ] Rotation controls
 - [ ] 3D tilt controls (for Cesium)
 
 #### Status Bar
-- [ ] Mouse coordinates (multiple formats)
-- [ ] Current scale
-- [ ] Current CRS/projection
+- [x] Mouse coordinates (multiple formats)
+- [x] Current scale
+- [x] Current CRS/projection
 - [ ] Memory/performance indicator
 - [ ] Background task progress
 
@@ -245,9 +269,9 @@ npm run dist     # Build distributable packages
 - [ ] Import QGIS project (.qgz)
 
 #### Settings & Preferences
-- [ ] Settings dialog
+- [x] Settings dialog
 - [ ] Default CRS selection
-- [ ] Unit preferences (metric/imperial)
+- [x] Unit preferences (metric/imperial)
 - [ ] Theme selection (dark/light)
 - [ ] Proxy configuration
 - [ ] Cache management
