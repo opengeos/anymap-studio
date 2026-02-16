@@ -11,12 +11,36 @@ interface BasemapOption {
 }
 
 const basemaps: BasemapOption[] = [
-  { id: 'liberty', name: 'OpenFreeMap Liberty', url: 'https://tiles.openfreemap.org/styles/liberty' },
-  { id: 'bright', name: 'OpenFreeMap Bright', url: 'https://tiles.openfreemap.org/styles/bright' },
-  { id: 'positron', name: 'OpenFreeMap Positron', url: 'https://tiles.openfreemap.org/styles/positron' },
-  { id: 'carto-dark-matter', name: 'CartoDB Dark Matter', url: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json' },
-  { id: 'carto-positron', name: 'CartoDB Positron', url: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json' },
-  { id: 'carto-voyager', name: 'CartoDB Voyager', url: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json' }
+  {
+    id: 'liberty',
+    name: 'OpenFreeMap Liberty',
+    url: 'https://tiles.openfreemap.org/styles/liberty'
+  },
+  {
+    id: 'bright',
+    name: 'OpenFreeMap Bright',
+    url: 'https://tiles.openfreemap.org/styles/bright'
+  },
+  {
+    id: 'positron',
+    name: 'OpenFreeMap Positron',
+    url: 'https://tiles.openfreemap.org/styles/positron'
+  },
+  {
+    id: 'carto-dark-matter',
+    name: 'CartoDB Dark Matter',
+    url: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+  },
+  {
+    id: 'carto-positron',
+    name: 'CartoDB Positron',
+    url: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
+  },
+  {
+    id: 'carto-voyager',
+    name: 'CartoDB Voyager',
+    url: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
+  }
 ]
 
 export function BasemapSelector() {
@@ -26,45 +50,58 @@ export function BasemapSelector() {
 
   const handleBasemapChange = async (basemap: BasemapOption) => {
     if (!backend || backend.type !== 'maplibre' || isChanging) return
+
     const map = backend.getNativeMap() as maplibregl.Map | null
     if (!map) return
 
     setIsChanging(true)
     setSelectedId(basemap.id)
 
+    // Save current layers from the adapter
     const currentLayers = [...backend.getLayers()]
+
+    // Clear internal layer tracking before style change
     ;(backend as MapLibreAdapter).clearLayerTracking()
+
+    // Change the style
     map.setStyle(basemap.url)
 
+    // Wait for style to load, then re-add layers
     map.once('style.load', async () => {
+      // Re-add all layers
       for (const layer of currentLayers) {
-        try { await (backend as MapLibreAdapter).addLayer(layer) }
-        catch (e) { console.error('Failed to re-add layer after basemap change:', e) }
+        try {
+          await (backend as MapLibreAdapter).addLayer(layer)
+        } catch (e) {
+          console.error('Failed to re-add layer after basemap change:', e)
+        }
       }
       setIsChanging(false)
     })
   }
 
   return (
-    <div className="flex flex-col gap-1.5 px-4 py-2">
+    <div className="flex flex-col gap-2 px-3 py-2">
       {basemaps.map((basemap) => {
         const isSelected = selectedId === basemap.id
         return (
           <button
             key={basemap.id}
             onClick={() => handleBasemapChange(basemap)}
-            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all ${
+            className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all ${
               isSelected
-                ? 'bg-blue-500/10 text-blue-300'
-                : 'text-slate-300 hover:bg-slate-800/60'
+                ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/50'
+                : 'border-slate-700 bg-slate-800/30 hover:bg-slate-800/60 hover:border-slate-600'
             }`}
           >
-            <div className={`flex h-5 w-5 items-center justify-center rounded-full flex-shrink-0 ${
-              isSelected ? 'bg-blue-500' : 'border border-slate-600'
+            <div className={`h-8 w-12 rounded flex-shrink-0 flex items-center justify-center ${
+              isSelected ? 'bg-blue-500/20' : 'bg-slate-700'
             }`}>
-              {isSelected && <Check className="h-3 w-3 text-white" />}
+              {isSelected && <Check className="h-4 w-4 text-blue-400" />}
             </div>
-            <span className="text-[13px]">{basemap.name}</span>
+            <span className={`text-sm ${isSelected ? 'text-blue-300 font-medium' : 'text-slate-300'}`}>
+              {basemap.name}
+            </span>
           </button>
         )
       })}

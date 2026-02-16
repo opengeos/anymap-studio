@@ -14,7 +14,7 @@ import { SettingsPanel } from '../common/SettingsPanel'
 import { useUIStore } from '../../stores/uiStore'
 
 export function AppShell() {
-  const { sidebarOpen, statusBarVisible, showAttributeTable } = useUIStore()
+  const { sidebarOpen, statusBarVisible } = useUIStore()
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -24,6 +24,7 @@ export function AppShell() {
       // Don't trigger shortcuts when typing in input fields
       const target = e.target as HTMLElement
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+        // Still allow Escape
         if (e.key === 'Escape') {
           state.setShowCommandPalette(false)
           state.setShowGoToCoordinates(false)
@@ -72,14 +73,14 @@ export function AppShell() {
         return
       }
 
-      // Escape to cancel tool or close panels
+      // Escape to cancel tool
       if (e.key === 'Escape') {
-        if (state.showCommandPalette) { state.setShowCommandPalette(false); return }
-        if (state.showGoToCoordinates) { state.setShowGoToCoordinates(false); return }
-        if (state.showExportDialog) { state.setShowExportDialog(false); return }
-        if (state.showSettings) { state.setShowSettings(false); return }
-        if (state.showStyleEditor) { state.setShowStyleEditor(false); return }
-        if (state.showAttributeTable) { state.setShowAttributeTable(false); return }
+        state.setShowCommandPalette(false)
+        state.setShowGoToCoordinates(false)
+        state.setShowExportDialog(false)
+        state.setShowSettings(false)
+        state.setShowStyleEditor(false)
+        state.setShowAttributeTable(false)
         if (state.activeTool !== 'none') {
           if (state.activeTool.startsWith('measure')) {
             state.clearMeasurement()
@@ -118,20 +119,17 @@ export function AppShell() {
       <div className="flex flex-1 overflow-hidden">
         {sidebarOpen && <Sidebar />}
 
-        {/* Main content area: map + attribute table stacked vertically */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <main className="relative flex-1 overflow-hidden">
-            <MapCanvas />
-            <MeasureTool />
-            <DrawTool />
-          </main>
-
-          {/* Attribute table docked at the bottom */}
-          {showAttributeTable && <AttributeTable />}
-        </div>
+        <main className="relative flex-1 overflow-hidden">
+          <MapCanvas />
+          <MeasureTool />
+          <DrawTool />
+        </main>
       </div>
 
       {statusBarVisible && <StatusBar />}
+
+      {/* Attribute Table - absolute positioned above status bar */}
+      <AttributeTable />
 
       {/* Modal overlays */}
       <GoToCoordinates />

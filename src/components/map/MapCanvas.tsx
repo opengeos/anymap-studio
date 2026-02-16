@@ -14,7 +14,6 @@ export function MapCanvas() {
   const containerRef = useRef<HTMLDivElement>(null)
   const backendRef = useRef<IMapBackend | null>(null)
   const popupRef = useRef<maplibregl.Popup | null>(null)
-  const hoverPopupRef = useRef<maplibregl.Popup | null>(null)
 
   const { backendType, setBackend, setCursorPosition, setZoom, setLoading, setError } = useMapStore()
   const { view, layers, addLayer } = useProjectStore()
@@ -199,54 +198,6 @@ export function MapCanvas() {
 
         // Identify click handler
         nativeMap.on('click', handleMapClick as (e: maplibregl.MapMouseEvent) => void)
-
-        // Hover tooltip handler
-        nativeMap.on('mousemove', (ev: maplibregl.MapMouseEvent) => {
-          const tool = useUIStore.getState().activeTool
-          if (tool !== 'none' && tool !== 'identify') return
-
-          const pLayers = useProjectStore.getState().layers
-          const hoverIds: string[] = []
-          for (const l of pLayers) {
-            if (l.visible && l.type === 'geojson') {
-              for (const sub of [`${l.id}-fill`, `${l.id}-line`, `${l.id}-point`]) {
-                if (nativeMap.getLayer(sub)) hoverIds.push(sub)
-              }
-            }
-          }
-          if (hoverIds.length === 0) {
-            if (hoverPopupRef.current) { hoverPopupRef.current.remove(); hoverPopupRef.current = null }
-            return
-          }
-
-          const features = nativeMap.queryRenderedFeatures(ev.point, { layers: hoverIds })
-          if (features.length === 0) {
-            if (hoverPopupRef.current) { hoverPopupRef.current.remove(); hoverPopupRef.current = null }
-            nativeMap.getCanvas().style.cursor = tool === 'identify' ? 'help' : ''
-            return
-          }
-
-          if (tool === 'none') nativeMap.getCanvas().style.cursor = 'pointer'
-
-          const feat = features[0]
-          const props = feat.properties || {}
-          const nameField = props.name || props.NAME || props.Name || props.title || props.TITLE || ''
-          if (!nameField) {
-            if (hoverPopupRef.current) { hoverPopupRef.current.remove(); hoverPopupRef.current = null }
-            return
-          }
-
-          if (!hoverPopupRef.current) {
-            hoverPopupRef.current = new maplibregl.Popup({
-              closeButton: false, closeOnClick: false, maxWidth: '250px',
-              offset: 12, className: 'hover-popup'
-            })
-          }
-          hoverPopupRef.current
-            .setLngLat(ev.lngLat)
-            .setHTML(`<div style="font-size:12px;color:#e2e8f0;padding:2px 0;">${nameField}</div>`)
-            .addTo(nativeMap)
-        })
       }
 
       for (const layer of layers) {
@@ -273,10 +224,6 @@ export function MapCanvas() {
       if (popupRef.current) {
         popupRef.current.remove()
         popupRef.current = null
-      }
-      if (hoverPopupRef.current) {
-        hoverPopupRef.current.remove()
-        hoverPopupRef.current = null
       }
       if (backendRef.current) {
         backendRef.current.destroy()
