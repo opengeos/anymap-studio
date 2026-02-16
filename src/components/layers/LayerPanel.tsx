@@ -176,16 +176,16 @@ export function LayerPanel() {
 
       {/* URL Dialog */}
       {showUrlDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-lg bg-slate-800 p-4 shadow-xl">
-            <h3 className="mb-4 text-lg font-semibold text-slate-200">Add Layer from URL</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-slate-800 p-6 shadow-2xl border border-slate-700">
+            <h3 className="mb-6 text-lg font-semibold text-slate-100">Add Layer from URL</h3>
 
-            <div className="mb-4">
-              <label className="mb-2 block text-sm text-slate-400">Layer Type</label>
+            <div className="mb-5">
+              <label className="mb-2 block text-sm font-medium text-slate-300">Layer Type</label>
               <select
                 value={urlType}
                 onChange={(e) => setUrlType(e.target.value as typeof urlType)}
-                className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-slate-200 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-slate-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value="geojson">GeoJSON</option>
                 <option value="cog">Cloud Optimized GeoTIFF (COG)</option>
@@ -194,8 +194,8 @@ export function LayerPanel() {
               </select>
             </div>
 
-            <div className="mb-4">
-              <label className="mb-2 block text-sm text-slate-400">URL</label>
+            <div className="mb-6">
+              <label className="mb-2 block text-sm font-medium text-slate-300">URL</label>
               <input
                 type="url"
                 value={urlInput}
@@ -206,24 +206,24 @@ export function LayerPanel() {
                   urlType === 'pmtiles' ? 'https://example.com/tiles.pmtiles' :
                   'https://example.com/tiles/{z}/{x}/{y}.png'
                 }
-                className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={() => {
                   setShowUrlDialog(false)
                   setUrlInput('')
                 }}
-                className="rounded-lg px-4 py-2 text-sm text-slate-400 hover:text-slate-200"
+                className="rounded-lg px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddFromURL}
                 disabled={!urlInput.trim() || isLoading}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50 transition-colors"
               >
                 {isLoading ? 'Loading...' : 'Add Layer'}
               </button>

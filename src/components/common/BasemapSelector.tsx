@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Check } from 'lucide-react'
 import { useMapStore } from '../../stores/mapStore'
+import type { MapLibreAdapter } from '../../backends/adapters/MapLibreAdapter'
+import maplibregl from 'maplibre-gl'
 
 interface BasemapOption {
   id: string
@@ -32,17 +34,41 @@ const basemaps: BasemapOption[] = [
 ]
 
 export function BasemapSelector() {
-  const { backend } = useMapStore()
+  const { backend, backendType } = useMapStore()
   const [selectedId, setSelectedId] = useState('liberty')
+  const [isChanging, setIsChanging] = useState(false)
 
-  const handleBasemapChange = (basemap: BasemapOption) => {
-    if (!backend) return
+  const handleBasemapChange = async (basemap: BasemapOption) => {
+    if (!backend || backendType !== 'maplibre' || isChanging) return
 
     const map = backend.getNativeMap() as maplibregl.Map | null
-    if (map) {
-      map.setStyle(basemap.url)
-      setSelectedId(basemap.id)
-    }
+    if (!map) return
+
+    setIsChanging(true)
+
+    // Save current layers from the adapter
+    const currentLayers = backend.getLayers()
+
+    // Change the style
+    map.setStyle(basemap.url)
+
+    // Wait for style to load, then re-add layers
+    map.once('style.load', async () => {
+      // Clear internal layer tracking since map sources were removed
+      (backend as MapLibreAdapter).clearLayerTracking()
+
+      // Re-add all layers from project store
+      for (const layer of currentLayers) {
+        try {
+          await (backend as MapLibreAdapter).addLayer(layer)
+        } catch (e) {
+          console.error('Failed to re-add layer after basemap change:', e)
+        }
+      }
+      setIsChanging(false)
+    })
+
+    setSelectedId(basemap.id)
   }
 
   return (

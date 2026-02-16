@@ -73,11 +73,21 @@ export class MapLibreAdapter implements IMapBackend {
     this.eventHandlers.clear()
   }
 
+  /**
+   * Clear internal layer tracking. Used when basemap style changes.
+   */
+  clearLayerTracking(): void {
+    this.layers.clear()
+  }
+
   async addLayer(config: UnifiedLayerConfig): Promise<string> {
     if (!this.map) throw new Error('Map not initialized')
 
     const sourceId = `source-${config.id}`
     const layerId = config.id
+
+    // Remove existing layer/source if they exist (for re-adding after style change)
+    this.removeLayer(config.id)
 
     // Add source based on layer type
     switch (config.type) {
