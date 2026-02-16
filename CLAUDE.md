@@ -120,6 +120,14 @@ npm run dist     # Build distributable packages
 - Settings dialog with coordinate format, sidebar width, etc.
 - Status bar with scale, CRS, coordinate format toggle
 - Fit to all layers bounds
+- Feature info popup on hover (shows name field on hover)
+- Select features from table (sync highlight to map)
+- Label configuration (field, font size, color, halo)
+- Save/load layer styles (.json import/export)
+- Layer metadata/properties panel (feature count, geometry types)
+- Bookmarks/saved views
+- Recent projects list on landing page
+- Heatmap generation from point layers
 
 ## Remaining Tasks
 
@@ -141,7 +149,7 @@ npm run dist     # Build distributable packages
 - [x] Layer renaming
 - [x] Duplicate layer
 - [x] Layer context menu (right-click)
-- [ ] Layer metadata/properties panel
+- [x] Layer metadata/properties panel
 - [x] Layer extent info display
 
 #### Styling & Symbology
@@ -152,14 +160,14 @@ npm run dist     # Build distributable packages
 - [ ] Categorized styling (by attribute)
 - [ ] Graduated styling (numeric ranges)
 - [ ] Rule-based styling
-- [ ] Label configuration (field, font, halo)
-- [ ] Save/load layer styles (.json)
+- [x] Label configuration (field, font, halo)
+- [x] Save/load layer styles (.json)
 
 #### Attribute Table
 - [x] View attributes in data grid
 - [x] Sort by column
 - [x] Filter/search attributes
-- [ ] Select features from table (sync with map)
+- [x] Select features from table (sync with map)
 - [ ] Edit attribute values
 - [ ] Add/remove fields
 - [ ] Field calculator (expressions)
@@ -174,7 +182,7 @@ npm run dist     # Build distributable packages
 - [ ] Polygon select
 - [ ] Select by attribute (SQL-like query)
 - [x] Identify tool (click to see attributes)
-- [ ] Feature info popup on hover
+- [x] Feature info popup on hover
 
 #### Editing & Sketching
 - [ ] Edit existing feature geometry (move vertices)
@@ -192,7 +200,7 @@ npm run dist     # Build distributable packages
 - [ ] Dissolve
 - [ ] Centroid calculation
 - [ ] Voronoi/Thiessen polygons
-- [ ] Heatmap generation
+- [x] Heatmap generation
 - [ ] Spatial join
 
 #### Export & Print
@@ -245,7 +253,7 @@ npm run dist     # Build distributable packages
 - [ ] Full-screen mode
 
 #### Navigation & View
-- [ ] Bookmarks/saved views
+- [x] Bookmarks/saved views
 - [x] Go to coordinates dialog
 - [ ] Coordinate search (geocoding)
 - [ ] History (back/forward navigation)
@@ -262,7 +270,7 @@ npm run dist     # Build distributable packages
 ### Project & Settings
 
 #### Project Management
-- [ ] Recent projects list on landing page
+- [x] Recent projects list on landing page
 - [ ] Project templates
 - [ ] Auto-save
 - [ ] Project recovery (crash recovery)

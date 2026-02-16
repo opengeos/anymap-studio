@@ -198,3 +198,10 @@ body {
   color: #e2e8f0;
   background-color: transparent;
 }
+
+/* Hover popup - smaller, no close button */
+.hover-popup .maplibregl-popup-content {
+  padding: 6px 10px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}

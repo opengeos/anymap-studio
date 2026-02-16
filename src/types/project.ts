@@ -7,6 +7,15 @@ export interface ViewOptions {
   bearing?: number
 }
 
+export interface LabelConfig {
+  enabled: boolean
+  field: string
+  fontSize?: number
+  color?: string
+  haloColor?: string
+  haloWidth?: number
+}
+
 export interface LayerStyle {
   fillColor?: string
   fillOpacity?: number
@@ -15,6 +24,7 @@ export interface LayerStyle {
   strokeOpacity?: number
   pointRadius?: number
   pointColor?: string
+  label?: LabelConfig
 }
 
 export interface UnifiedLayerConfig {
