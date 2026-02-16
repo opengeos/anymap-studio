@@ -46,6 +46,7 @@ export class MapLibreAdapter implements IMapBackend {
 
     // Add navigation controls
     this.map.addControl(new maplibregl.NavigationControl(), 'top-right')
+    this.map.addControl(new maplibregl.GlobeControl(), 'top-right')
     this.map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
 
     // Wait for map to load
